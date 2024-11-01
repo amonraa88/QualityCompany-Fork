@@ -112,49 +112,25 @@ internal class ScrapValueModule : InventoryBaseUI
     protected void UpdateTotalScrapValue()
     {
         if (_totalScrapValueText is null) return;
-    
-        var networkManager = GameNetworkManager.Instance;
-        if (networkManager == null)
+
+        if (GameNetworkManager.Instance?.localPlayerController?.ItemSlots is null)
         {
-            Logger.LogWarning("UpdateTotalScrapValue: GameNetworkManager.Instance is null");
+            Logger.LogWarning("UpdateTotalScrapValue: GNM.Instance?.localPlayerController?.ItemSlots is null");
             return;
         }
-    
-        var localPlayer = networkManager.localPlayerController;
-        if (localPlayer == null)
-        {
-            Logger.LogWarning("UpdateTotalScrapValue: localPlayerController is null");
-            return;
-        }
-    
-        var itemSlots = localPlayer.ItemSlots;
-        if (itemSlots == null)
-        {
-            Logger.LogWarning("UpdateTotalScrapValue: localPlayerController.ItemSlots is null");
-            return;
-        }
-    
+
         var totalScrapValue = 0;
-        foreach (var slotScrap in itemSlots)
+        foreach (var slotScrap in GameNetworkManager.Instance.localPlayerController.ItemSlots)
         {
-            // Added null check for slotScrap
-            if (slotScrap == null)
-            {
-                Logger.LogWarning("UpdateTotalScrapValue: Found a null slotScrap in ItemSlots");
-                continue;
-            }
-            
-            if (!slotScrap.itemProperties.isScrap || slotScrap.scrapValue <= 0) continue;
-    
+            if (slotScrap is null || !slotScrap.itemProperties.isScrap || slotScrap.scrapValue <= 0) continue;
+
             totalScrapValue += slotScrap.scrapValue;
         }
-    
-        // Update the UI text with the total scrap value
+
         _totalScrapValueText.text = $"Total: ${totalScrapValue}";
         _totalScrapValueText.enabled = totalScrapValue > 0;
         _totalScrapValueText.color = GetColorForValue(totalScrapValue);
     }
-
 
     internal static Color GetColorForValue(int value)
     {
@@ -184,4 +160,3 @@ internal class ScrapValueModule : InventoryBaseUI
         };
     }
 }
-

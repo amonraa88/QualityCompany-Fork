@@ -18,7 +18,7 @@ internal class ScrapValueModule : InventoryBaseUI
 
     private TextMeshProUGUI? _totalScrapValueText;
 
-    public ScrapValueModule() : base(nameof(ScrapValueModule))
+    public ScrapValueModule()
     { }
 
     [ModuleOnLoad]

@@ -11,8 +11,7 @@ namespace QualityCompany.Modules.Inventory
         private static readonly Color TextColorHalf = new(0.953f, 0.953f, 0.141f, 0.75f);
         private static readonly Color TextColorEmpty = new(1f, 0f, 0f, 0.75f);
 
-        public ShotgunAmmoModule() : base(nameof(ShotgunAmmoModule))
-        { }
+        public ShotgunAmmoModule() { }
 
         [ModuleOnLoad]
         private static ShotgunAmmoModule SpawnShotgunAmmoModule()

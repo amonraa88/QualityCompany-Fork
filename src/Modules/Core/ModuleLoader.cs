@@ -1,85 +1,68 @@
-using QualityCompany.Service;
+﻿using QualityCompany.Service;
 using System;
 using System.Collections;
 using System.Linq;
 using UnityEngine;
 using static QualityCompany.Events.GameEvents;
 
-namespace QualityCompany.Modules.Core
+namespace QualityCompany.Modules.Core;
+
+internal class ModuleLoader : MonoBehaviour
 {
-    internal class ModuleLoader : MonoBehaviour
+    private readonly ModLogger Logger = new(nameof(ModuleLoader));
+
+    private void Start()
     {
-        private readonly ModLogger Logger = new(nameof(ModuleLoader));
+        transform.position = Vector3.zero;
+        transform.localPosition = Vector3.zero;
+        transform.localScale = Vector3.one;
 
-        private void Start()
+        StartCoroutine(LoadModulesCoroutine());
+
+        Disconnected += DetachAllModules;
+    }
+
+    private IEnumerator LoadModulesCoroutine()
+    {
+        var delay = Math.Max(3.0f, Plugin.Instance.PluginConfig.InventoryStartupDelay);
+        Logger.TryLogDebug($"Loading up modules with a {delay} seconds delay...");
+
+        foreach (var internalModule in ModuleRegistry.Modules.Where(x => !x.DelayedStart))
         {
-            transform.position = Vector3.zero;
-            transform.localPosition = Vector3.zero;
-            transform.localScale = Vector3.one;
+            Logger.TryLogDebug($"Starting up {internalModule.Name}");
+            var instance = internalModule.OnLoad?.Invoke(null, null);
+            if (instance is null) continue;
 
-            StartCoroutine(LoadModulesCoroutine());
-
-            // Subscribe to Disconnected event
-            Disconnected += DetachAllModules;
+            internalModule.Instance = instance;
+            internalModule.OnAttach?.Invoke(instance, null);
         }
 
-        private void OnDestroy()
+        yield return new WaitForSeconds(delay);
+
+        foreach (var internalModule in ModuleRegistry.Modules.Where(x => x.DelayedStart))
         {
-            // Unsubscribe from Disconnected event to avoid memory leaks
-            Disconnected -= DetachAllModules;
+            Logger.TryLogDebug($"Starting up {internalModule.Name}");
+            var instance = internalModule.OnLoad?.Invoke(null, null);
+            if (instance is null) continue;
+
+            internalModule.Instance = instance;
+            internalModule.OnAttach?.Invoke(instance, null);
         }
 
-        private IEnumerator LoadModulesCoroutine()
+        Logger.TryLogDebug("Internal modules loaded!");
+    }
+
+    private void DetachAllModules(GameNetworkManager _)
+    {
+        Logger.TryLogDebug("DetachAllModules");
+
+        foreach (var internalModule in ModuleRegistry.Modules)
         {
-            // Check if Plugin instance and PluginConfig are initialized
-            if (Plugin.Instance?.PluginConfig == null)
-            {
-                Logger.TryLogDebug("Plugin configuration is missing; skipping module load.");
-                yield break;
-            }
+            if (internalModule.Instance is null) continue;
 
-            float delay = Mathf.Max(3.0f, Plugin.Instance.PluginConfig.InventoryStartupDelay);
-            Logger.TryLogDebug($"Loading up modules with a {delay} seconds delay...");
-
-            // Load non-delayed modules
-            foreach (var internalModule in ModuleRegistry.Modules?.Where(x => !x.DelayedStart) ?? Enumerable.Empty<InternalModule>())
-            {
-                Logger.TryLogDebug($"Starting up {internalModule.Name}");
-                var instance = internalModule.OnLoad?.Invoke(null, null);
-                if (instance == null) continue;
-
-                internalModule.Instance = instance;
-                internalModule.OnAttach?.Invoke(instance, null);
-            }
-
-            yield return new WaitForSeconds(delay);
-
-            // Load delayed modules
-            foreach (var internalModule in ModuleRegistry.Modules?.Where(x => x.DelayedStart) ?? Enumerable.Empty<InternalModule>())
-            {
-                Logger.TryLogDebug($"Starting up {internalModule.Name}");
-                var instance = internalModule.OnLoad?.Invoke(null, null);
-                if (instance == null) continue;
-
-                internalModule.Instance = instance;
-                internalModule.OnAttach?.Invoke(instance, null);
-            }
-
-            Logger.TryLogDebug("Internal modules loaded!");
-        }
-
-        private void DetachAllModules(GameNetworkManager _)
-        {
-            Logger.TryLogDebug("Detaching all modules...");
-
-            foreach (var internalModule in ModuleRegistry.Modules ?? Enumerable.Empty<InternalModule>())
-            {
-                if (internalModule.Instance == null) continue;
-
-                Logger.TryLogDebug($"Detaching {internalModule.Name}");
-                internalModule.OnDetach?.Invoke(internalModule.Instance, null);
-                internalModule.Instance = null;
-            }
+            Logger.TryLogDebug($"Detaching {internalModule.Name}");
+            internalModule.OnDetach?.Invoke(internalModule.Instance, null);
+            internalModule.Instance = null;
         }
     }
 }
